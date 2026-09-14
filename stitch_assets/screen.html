@@ -1,0 +1,667 @@
+<!DOCTYPE html><html class="" lang="en" style=""><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport">
+<title>task planner - mobile ui</title>
+<!-- Tailwind CSS v3 CDN with forms and container queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Source Serif 4 for warm serif display & Plus Jakarta Sans / Inter for UI -->
+<link href="https://fonts.googleapis.com" rel="preconnect">
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&amp;family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&amp;display=swap" rel="stylesheet">
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            canvas: '#0E1013',
+            surface: '#171A21',
+            elevated: '#1F242E',
+            stroke: '#2A313E',
+            textPrimary: '#F0F3F8',
+            textSecondary: '#9BA3AF',
+            textMuted: '#525D6D',
+            urgent: '#FF7A29',
+            urgentTint: 'rgba(255, 122, 41, 0.12)',
+            priorityBlue: '#29A8FF',
+            priorityBlueTint: 'rgba(41, 168, 255, 0.12)',
+            mintGreen: '#10B981',
+            mintGreenTint: 'rgba(16, 185, 129, 0.12)',
+          },
+          fontFamily: {
+            serif: ['"Source Serif 4"', 'serif'],
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          boxShadow: {
+            'glow-orange': '0 0 16px -2px rgba(255, 122, 41, 0.35)',
+            'glow-blue': '0 0 16px -2px rgba(41, 168, 255, 0.35)',
+            'sheet': '0 -16px 40px -4px rgba(0, 0, 0, 0.85)',
+          }
+        }
+      }
+    }
+  </script>
+<!-- Custom Styles for Mobile Device Preview Frame & Scrollbars -->
+<style data-purpose="custom-scrollbars">
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0E1013;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #2A313E;
+      border-radius: 4px;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+  </style>
+<style data-purpose="virtual-keyboard-styling">
+    .keyboard-key {
+      background-color: #2D333F;
+      box-shadow: 0 1px 0 #181A20;
+      transition: all 0.08s ease;
+    }
+    .keyboard-key:active {
+      background-color: #3F4756;
+      transform: translateY(1px);
+    }
+    /* Light Mode Overrides when root html does not have .dark */
+    html:not(.dark) body {
+      background-color: #f1f3f6;
+      color: #1a1e26;
+    }
+    html:not(.dark) [data-purpose="mobile-viewport"] {
+      background-color: #f8fafc;
+      border-color: #e2e8f0;
+      color: #1e293b;
+    }
+    html:not(.dark) [data-purpose="screen-header"] {
+      background-color: rgba(248, 250, 252, 0.95);
+      border-color: #e2e8f0;
+    }
+    html:not(.dark) .task-card {
+      background-color: #ffffff !important;
+      border-color: #e2e8f0 !important;
+      box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.04);
+    }
+    html:not(.dark) .railway-track-bg {
+      background-color: #e2e8f0 !important;
+    }
+    html:not(.dark) .bg-surface {
+      background-color: #ffffff !important;
+    }
+    html:not(.dark) .bg-elevated {
+      background-color: #f1f5f9 !important;
+    }
+    html:not(.dark) .border-stroke {
+      border-color: #e2e8f0 !important;
+    }
+    html:not(.dark) .text-textPrimary {
+      color: #0f172a !important;
+    }
+    html:not(.dark) .text-textSecondary {
+      color: #64748b !important;
+    }
+    html:not(.dark) .text-textMuted {
+      color: #94a3b8 !important;
+    }
+    html:not(.dark) #searchBarInput {
+      background-color: #f1f5f9 !important;
+      border-color: #e2e8f0 !important;
+      color: #0f172a !important;
+    }
+    html:not(.dark) #quickTaskInput {
+      background-color: #ffffff !important;
+      border-color: #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    html:not(.dark) #collapsedBottomBar {
+      background-color: rgba(248, 250, 252, 0.95) !important;
+      border-color: #e2e8f0 !important;
+    }
+    html:not(.dark) #expandedDrawer {
+      background-color: rgba(255, 255, 255, 0.98) !important;
+      border-color: #e2e8f0 !important;
+    }
+  </style>
+</head>
+<body class="bg-[#050608] text-textPrimary font-sans antialiased flex flex-col items-center justify-start min-h-screen p-0 sm:py-6 selection:bg-urgent selection:text-white transition-colors duration-200">
+<!-- BEGIN: MobileDeviceContainer -->
+<div class="relative w-full max-w-[420px] h-[890px] bg-canvas sm:border sm:border-stroke sm:rounded-[44px] overflow-hidden flex flex-col shadow-2xl transition-colors duration-200" data-purpose="mobile-viewport">
+<!-- BEGIN: HeaderSection -->
+<header class="px-5 pt-3 pb-3 shrink-0 border-b border-stroke/60 bg-canvas/95 backdrop-blur z-20 transition-colors duration-200" data-purpose="screen-header">
+<!-- Top Row: Settings / Back Arrow Trigger, Title & Light/Dark Switch -->
+<div class="flex items-center justify-between mb-3"><h1 class="font-serif text-2xl font-bold tracking-tight text-textPrimary leading-tight lowercase">
+      goodwork,<span class="italic font-normal text-textSecondary">&nbsp;alex</span>
+</h1>
+<div class="flex items-center gap-2">
+<button class="w-8 h-8 rounded-xl bg-surface border border-stroke text-textSecondary hover:text-textPrimary flex items-center justify-center transition shadow-sm sm:bg-surface" id="themeToggleBtn" onclick="toggleTheme()" title="toggle theme">
+<svg class="w-3.5 h-3.5 text-urgent hidden" fill="none" id="themeSunIcon" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<circle cx="12" cy="12" r="5"></circle>
+<line x1="12" x2="12" y1="1" y2="3"></line>
+<line x1="12" x2="12" y1="21" y2="23"></line>
+<line x1="4.22" x2="5.64" y1="4.22" y2="5.64"></line>
+<line x1="18.36" x2="19.78" y1="18.36" y2="19.78"></line>
+<line x1="1" x2="3" y1="12" y2="12"></line>
+<line x1="21" x2="23" y1="12" y2="12"></line>
+<line x1="4.22" x2="5.64" y1="19.78" y2="18.36"></line>
+<line x1="18.36" x2="19.78" y1="5.64" y2="4.22"></line>
+</svg>
+<svg class="w-3.5 h-3.5 text-priorityBlue" fill="none" id="themeMoonIcon" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24">
+<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+</svg>
+</button>
+<button aria-label="open settings navigation" class="w-8 h-8 rounded-xl flex items-center justify-center text-textSecondary hover:text-textPrimary hover:bg-surface border border-transparent hover:border-stroke transition" onclick="toggleSettingsFeedback()">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" viewBox="0 0 24 24">
+<path d="M15 19l-7-7 7-7"></path>
+</svg>
+</button>
+</div></div>
+<!-- Quick Filter Chips & Urgency/Priority levels: ONLY urgent, high, low in lowercase -->
+<div class="flex items-center justify-between gap-1.5 pt-1 pb-2">
+<!-- Filter Tabs: daily / weekly / all -->
+<div class="flex bg-surface p-1 rounded-xl border border-stroke" data-purpose="period-selector">
+<button class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-elevated text-textPrimary shadow-sm lowercase">daily</button>
+<button class="px-2 py-1 rounded-lg text-xs font-medium text-textSecondary hover:text-textPrimary lowercase">weekly</button>
+<button class="px-2 py-1 rounded-lg text-xs font-medium text-textSecondary hover:text-textPrimary lowercase">all</button>
+</div>
+<!-- Priority Level Chips: urgent, high, low ONLY -->
+<div class="flex items-center gap-1.5">
+<!-- Urgent Quick Filter -->
+<button class="px-2 py-1 rounded-lg text-[11px] font-semibold text-urgent bg-urgentTint border border-urgent/30 flex items-center gap-1 lowercase" data-purpose="chip-urgent">
+<span class="w-1.5 h-1.5 rounded-full bg-urgent"></span>
+      urgent
+    </button>
+<!-- High Priority Quick Filter -->
+<button class="px-2 py-1 rounded-lg text-[11px] font-semibold text-priorityBlue bg-priorityBlueTint border border-priorityBlue/30 flex items-center gap-1 lowercase" data-purpose="chip-high">
+<span class="w-1.5 h-1.5 rounded-full bg-priorityBlue"></span>
+      high
+    </button>
+<!-- Low Priority Quick Filter -->
+<button class="px-2 py-1 rounded-lg text-[11px] font-semibold text-mintGreen bg-mintGreenTint border border-mintGreen/30 flex items-center gap-1 lowercase" data-purpose="chip-low">
+<span class="w-1.5 h-1.5 rounded-full bg-mintGreen"></span>
+      low
+    </button>
+</div>
+</div>
+<!-- Simplified Search Bar -->
+<div class="relative mt-1" data-purpose="fuzzy-search-bar">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-textMuted">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</div>
+<input class="w-full bg-[#16181E] border border-stroke/70 rounded-xl pl-9 pr-8 py-2.5 text-xs text-textPrimary placeholder:text-textMuted focus:outline-none focus:border-priorityBlue focus:ring-1 focus:ring-priorityBlue transition lowercase" id="searchBarInput" placeholder="search &quot;keyword&quot; place:@location" type="text">
+<button class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-textMuted hover:text-textSecondary text-[10px]" title="comfortable view">
+<span class="bg-elevated border border-stroke px-1.5 py-0.5 rounded text-[10px] lowercase font-mono">comf</span>
+</button>
+</div>
+</header>
+<!-- END: HeaderSection -->
+<!-- BEGIN: TaskListFeed -->
+<main class="flex-1 overflow-y-auto px-5 py-4 pb-28" data-purpose="task-feed">
+<!-- Railway continuous spine container -->
+<div class="relative pl-6 space-y-4">
+<!-- Continuous base spine in background -->
+<!-- Task Card 1: Urgent (Electric Orange) with Railway track segment -->
+<div class="relative z-10">
+<!-- Continuous railway color segment along this station/card -->
+<div class="absolute -left-6 top-0 bottom-0 w-1 bg-urgent z-10"></div>
+<article class="task-card relative bg-surface/50 sm:bg-surface rounded-2xl border border-stroke/70 overflow-hidden p-4 hover:border-stroke transition group" data-purpose="task-item-urgent">
+<div class="flex items-start gap-4 relative z-10">
+<!-- Left Column: Priority Badge, Large Serif Start Time, End Time -->
+<div class="flex flex-col items-center shrink-0 w-20 pt-0.5">
+<div class="flex items-center gap-1.5 mb-1">
+<span class="w-2.5 h-2.5 rounded-full bg-urgent shadow-glow-orange ring-2 ring-urgent/30"></span>
+<span class="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded lowercase bg-urgentTint text-urgent border border-urgent/30">urgent</span>
+</div>
+<span class="font-serif text-2xl font-bold tracking-tight text-urgent leading-none mt-1">09:00</span>
+<span class="text-[13px] font-mono text-textMuted mt-1 lowercase font-medium">10:30 am</span>
+</div>
+<!-- Right Column: Task Title & Metadata -->
+<div class="flex-1 min-w-0 pl-1 flex flex-col justify-between self-stretch">
+<div class="flex items-start justify-between gap-2">
+<h2 class="text-base font-semibold text-textPrimary leading-snug group-hover:text-urgent transition-colors">
+              Review quarterly sprint deliverables
+            </h2>
+<button class="text-textMuted hover:text-textPrimary pt-0.5 shrink-0" title="view details">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<div class="mt-3.5 flex items-center justify-between text-xs pt-0.5">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-elevated border border-stroke/70 text-[11px] text-textSecondary lowercase">
+<svg class="w-3 h-3 text-textMuted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              design studio
+            </span>
+<span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-urgent font-mono bg-urgentTint px-2 py-0.5 rounded border border-urgent/30 lowercase">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              3/4
+            </span>
+</div>
+</div>
+</div>
+</article>
+</div>
+<!-- Task Card 2: High Priority (Blue) with Railway track segment -->
+<div class="relative z-10">
+<!-- Continuous railway color segment along this station/card -->
+<div class="absolute -left-6 top-0 bottom-0 w-1 bg-priorityBlue z-10"></div>
+<article class="task-card relative bg-surface/50 sm:bg-surface rounded-2xl border border-stroke/70 overflow-hidden p-4 hover:border-stroke transition group" data-purpose="task-item-high">
+<div class="flex items-start gap-4 relative z-10">
+<!-- Left Column: Priority Badge, Large Serif Start Time, End Time -->
+<div class="flex flex-col items-center shrink-0 w-20 pt-0.5">
+<div class="flex items-center gap-1.5 mb-1">
+<span class="w-2.5 h-2.5 rounded-full bg-priorityBlue shadow-glow-blue ring-2 ring-priorityBlue/30"></span>
+<span class="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded lowercase bg-priorityBlueTint text-priorityBlue border border-priorityBlue/30">high</span>
+</div>
+<span class="font-serif text-2xl font-bold tracking-tight text-priorityBlue leading-none mt-1">11:30</span>
+<span class="text-[13px] font-mono text-textMuted mt-1 lowercase font-medium">12:15 pm</span>
+</div>
+<!-- Right Column: Task Title & Metadata -->
+<div class="flex-1 min-w-0 pl-1 flex flex-col justify-between self-stretch">
+<div class="flex items-start justify-between gap-2">
+<h2 class="text-base font-semibold text-textPrimary leading-snug group-hover:text-priorityBlue transition-colors">
+              Sync with mobile architecture team
+            </h2>
+<button class="text-textMuted hover:text-textPrimary pt-0.5 shrink-0" title="view details">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<div class="mt-3.5 flex items-center justify-between text-xs pt-0.5">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-elevated border border-stroke/70 text-[11px] text-textSecondary lowercase">
+<svg class="w-3 h-3 text-priorityBlue shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V7h2v5z"></path></svg>
+              google meet
+            </span>
+<span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-priorityBlue font-mono bg-priorityBlueTint px-2 py-0.5 rounded border border-priorityBlue/30 lowercase">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              daily
+            </span>
+</div>
+</div>
+</div>
+</article>
+</div>
+<!-- Task Card 3: Low Priority (Green) with Railway track segment -->
+<div class="relative z-10">
+<!-- Continuous railway color segment along this station/card -->
+<div class="absolute -left-6 top-0 bottom-0 w-1 bg-mintGreen z-10"></div>
+<article class="task-card relative bg-surface/50 sm:bg-surface rounded-2xl border border-stroke/70 overflow-hidden p-4 hover:border-stroke transition group" data-purpose="task-item-low">
+<div class="flex items-start gap-4 relative z-10">
+<!-- Left Column: Priority Badge, Large Serif Start Time, End Time -->
+<div class="flex flex-col items-center shrink-0 w-20 pt-0.5">
+<div class="flex items-center gap-1.5 mb-1">
+<span class="w-2.5 h-2.5 rounded-full bg-mintGreen ring-2 ring-mintGreen/30"></span>
+<span class="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded lowercase bg-mintGreenTint text-mintGreen border border-mintGreen/30">low</span>
+</div>
+<span class="font-serif text-2xl font-bold tracking-tight text-mintGreen leading-none mt-1">02:00</span>
+<span class="text-[13px] font-mono text-textMuted mt-1 lowercase font-medium">03:30 pm</span>
+</div>
+<!-- Right Column: Task Title & Metadata -->
+<div class="flex-1 min-w-0 pl-1 flex flex-col justify-between self-stretch">
+<div class="flex items-start justify-between gap-2">
+<h2 class="text-base font-semibold text-textPrimary leading-snug group-hover:text-mintGreen transition-colors">
+              Draft weekly design guidelines &amp; specs
+            </h2>
+<button class="text-textMuted hover:text-textPrimary pt-0.5 shrink-0" title="view details">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<div class="mt-3.5 flex items-center justify-between text-xs pt-0.5">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-elevated border border-stroke/70 text-[11px] text-textSecondary lowercase">
+<svg class="w-3 h-3 text-textMuted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              focus room 4b
+            </span>
+<span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-mintGreen font-mono bg-mintGreenTint px-2 py-0.5 rounded border border-mintGreen/30 lowercase">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              1/2
+            </span>
+</div>
+</div>
+</div>
+</article>
+</div>
+<!-- Task Card 4: Low Priority Item (Green) with Railway track segment -->
+<div class="relative z-10">
+<!-- Continuous railway color segment along this station/card -->
+<div class="absolute -left-6 top-0 bottom-0 w-1 bg-mintGreen z-10"></div>
+<article class="task-card relative bg-surface/50 sm:bg-surface rounded-2xl border border-stroke/70 overflow-hidden p-4 hover:border-stroke transition group" data-purpose="task-item-low-alt">
+<div class="flex items-start gap-4 relative z-10">
+<!-- Left Column: Priority Badge, Large Serif Start Time, End Time -->
+<div class="flex flex-col items-center shrink-0 w-20 pt-0.5">
+<div class="flex items-center gap-1.5 mb-1">
+<span class="w-2.5 h-2.5 rounded-full bg-mintGreen ring-2 ring-mintGreen/30"></span>
+<span class="text-[10px] font-bold tracking-wider px-1.5 py-0.5 rounded lowercase bg-mintGreenTint text-mintGreen border border-mintGreen/30">low</span>
+</div>
+<span class="font-serif text-2xl font-bold tracking-tight text-mintGreen leading-none mt-1">06:00</span>
+<span class="text-[13px] font-mono text-textMuted mt-1 lowercase font-medium">07:00 pm</span>
+</div>
+<!-- Right Column: Task Title & Metadata -->
+<div class="flex-1 min-w-0 pl-1 flex flex-col justify-between self-stretch">
+<div class="flex items-start justify-between gap-2">
+<h2 class="text-base font-semibold text-textPrimary leading-snug group-hover:text-mintGreen transition-colors">
+              Grocery run &amp; dinner prep
+            </h2>
+<button class="text-textMuted hover:text-textPrimary pt-0.5 shrink-0" title="view details">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<div class="mt-3.5 flex items-center justify-between text-xs pt-0.5">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-elevated border border-stroke/70 text-[11px] text-textSecondary lowercase">
+<svg class="w-3 h-3 text-textMuted shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              market st.
+            </span>
+<span class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-mintGreen font-mono bg-mintGreenTint px-2 py-0.5 rounded border border-mintGreen/30 lowercase">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+              0/3
+            </span>
+</div>
+</div>
+</div>
+</article>
+</div>
+</div>
+</main>
+<!-- END: TaskListFeed -->
+<!-- BEGIN: PersistentBottomToolbar -->
+<div class="absolute bottom-0 left-0 right-0 p-4 pb-6 bg-canvas/95 backdrop-blur-md border-t border-stroke z-30 transition-transform duration-300" data-purpose="bottom-quick-bar" id="collapsedBottomBar">
+<div class="flex items-center max-w-full relative"><div class="relative shrink-0"><button class="h-14 w-14 rounded-l-2xl rounded-r-none bg-mintGreen text-white flex items-center justify-center gap-1 hover:brightness-105 active:scale-95 transition cursor-pointer border-0" id="toolbarColorBtn" onclick="toggleColorMenu(event)" style="background-color: rgb(255, 122, 41);" title="select priority level"><svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path></svg></button><div class="absolute bottom-full mb-2 left-0 bg-surface border border-stroke rounded-2xl p-2 shadow-2xl z-50 flex flex-col gap-2 min-w-[56px] items-center hidden" id="toolbarColorMenu"><button class="w-10 h-10 rounded-xl bg-urgent flex items-center justify-center hover:brightness-110 active:scale-95 transition shadow-glow-orange" onclick="selectToolbarPriority('#FF7A29', 'urgent', event)" title="urgent"></button><button class="w-10 h-10 rounded-xl bg-priorityBlue flex items-center justify-center hover:brightness-110 active:scale-95 transition shadow-glow-blue" onclick="selectToolbarPriority('#29A8FF', 'high', event)" title="high"></button><button class="w-10 h-10 rounded-xl bg-mintGreen flex items-center justify-center hover:brightness-110 active:scale-95 transition" onclick="selectToolbarPriority('#10B981', 'low', event)" title="low"></button></div></div><div class="relative flex-1 min-w-0"><input class="w-full bg-[#1c1f26] border-y border-stroke border-x-0 rounded-none px-4 py-3.5 text-base text-textPrimary placeholder:text-textMuted focus:outline-none cursor-pointer shadow-inner hover:border-priorityBlue/50 transition lowercase h-14" id="quickTaskInput" onclick="setDrawerState(true)" placeholder="name of task..." readonly="" type="text"></div><div class="relative shrink-0"><button class="h-14 w-12 bg-surface border border-stroke rounded-r-2xl rounded-l-none border-l-0 flex items-center justify-center text-textPrimary hover:bg-elevated transition cursor-pointer" id="toolbarAddBtn" onclick="setDrawerState(true)" title="add task"><svg class="w-6 h-6 text-textPrimary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6v12m6-6H6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path></svg></button></div></div>
+<!-- iOS Home Indicator -->
+<div class="w-32 h-1 bg-stroke rounded-full mx-auto mt-3"><div class="relative shrink-0"><div class="absolute bottom-full mb-2 left-0 bg-surface border border-stroke rounded-2xl p-2 shadow-2xl z-50 flex flex-col gap-2 min-w-[56px] items-center hidden" id="toolbarColorMenu"><button class="w-10 h-10 rounded-xl bg-urgent flex items-center justify-center hover:brightness-110 active:scale-95 transition shadow-glow-orange" onclick="selectToolbarPriority('#FF7A29', 'urgent', event)" title="urgent"></button><button class="w-10 h-10 rounded-xl bg-priorityBlue flex items-center justify-center hover:brightness-110 active:scale-95 transition shadow-glow-blue" onclick="selectToolbarPriority('#29A8FF', 'high', event)" title="high"></button><button class="w-10 h-10 rounded-xl bg-mintGreen flex items-center justify-center hover:brightness-110 active:scale-95 transition" onclick="selectToolbarPriority('#10B981', 'low', event)" title="low"></button></div></div><div class="relative flex-1 min-w-0"></div></div>
+</div>
+<!-- END: PersistentBottomToolbar -->
+<!-- BEGIN: ExpandedBottomDrawerModal -->
+<div class="absolute inset-x-0 bottom-0 top-11 bg-canvas/98 backdrop-blur-2xl border-t border-stroke/70 rounded-t-3xl shadow-sheet z-40 flex flex-col transition-all duration-300 ease-out translate-y-full opacity-0 pointer-events-none" data-purpose="expanded-task-drawer" id="expandedDrawer">
+<!-- Modal Header Row: All lowercase labels -->
+<div class="px-6 py-4 flex items-center justify-between shrink-0 border-b border-stroke/50">
+<div class="flex items-center gap-2.5">
+<span class="w-3.5 h-3.5 rounded-md bg-urgent shadow-glow-orange" id="modalPriorityIndicator" style="background-color: rgb(255, 122, 41);"></span>
+<h3 class="font-serif font-bold text-lg text-textPrimary tracking-tight lowercase">create new task</h3>
+</div>
+<!-- Dismiss Button -->
+<button class="w-8 h-8 rounded-xl bg-surface border border-stroke flex items-center justify-center text-textSecondary hover:text-textPrimary hover:bg-elevated transition" onclick="setDrawerState(false)">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+</div>
+<!-- Drawer Scrollable Input Form with Noticeably Larger Inputs -->
+<div class="flex-1 overflow-y-auto px-6 py-4 space-y-4 no-scrollbar" data-purpose="modal-form-fields">
+<!-- 1. Task Name Input (Title keeps sentence/title casing) -->
+<div>
+<label class="block text-xs font-semibold lowercase tracking-wider text-textSecondary mb-1.5">task name</label>
+<div class="relative">
+<input class="w-full bg-surface border-2 border-priorityBlue rounded-2xl px-4 py-3.5 text-base font-medium text-textPrimary focus:outline-none ring-2 ring-priorityBlue/20" id="activeTaskTitleInput" type="text" value="Prepare client pitch deck">
+</div>
+</div>
+<!-- 2. Priority & Urgency: strictly lowercase -->
+<div>
+<div class="flex items-center justify-between mb-2">
+<span class="text-xs font-semibold lowercase tracking-wider text-textSecondary">priority &amp; urgency</span>
+<span class="text-xs text-urgent font-semibold lowercase" id="priorityStatusText" style="color: rgb(255, 122, 41);">urgent active</span>
+</div>
+<div class="grid grid-cols-3 gap-2">
+<!-- urgent -->
+<button class="py-3 px-3 rounded-2xl text-sm font-semibold bg-urgent text-white shadow-glow-orange border border-urgent flex items-center justify-center gap-2 transition lowercase" id="modalBtnUrgent" onclick="setModalPriority('urgent', '#FF7A29')">
+<span class="w-2.5 h-2.5 rounded-sm bg-white"></span>
+        urgent
+      </button>
+<!-- high -->
+<button class="py-3 px-3 rounded-2xl text-sm font-medium bg-surface border border-stroke flex items-center justify-center gap-2 transition lowercase text-priorityBlue" id="modalBtnHigh" onclick="setModalPriority('high', '#29A8FF')">
+<span class="w-2.5 h-2.5 rounded-sm bg-priorityBlue"></span>
+        high
+      </button>
+<!-- low -->
+<button class="py-3 px-3 rounded-2xl text-sm font-medium bg-surface border border-stroke flex items-center justify-center gap-2 transition lowercase text-mintGreen" id="modalBtnLow" onclick="setModalPriority('low', '#10B981')">
+<span class="w-2.5 h-2.5 rounded-sm bg-mintGreen"></span>
+        low
+      </button>
+</div>
+</div>
+<!-- 3. Date & Time Selector (All labels lowercase) -->
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="block text-xs font-semibold lowercase tracking-wider text-textSecondary mb-1.5">date</label>
+<button class="w-full flex items-center justify-between bg-surface border border-stroke rounded-2xl px-4 py-3.5 text-sm text-textPrimary hover:border-textSecondary/40 transition lowercase">
+<span class="flex items-center gap-2 font-medium">
+<svg class="w-4 h-4 text-textMuted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+          today, oct 24
+        </span>
+<svg class="w-4 h-4 text-textMuted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+<div>
+<label class="block text-xs font-semibold lowercase tracking-wider text-textSecondary mb-1.5">time</label>
+<button class="w-full flex items-center justify-between bg-surface border border-stroke rounded-2xl px-4 py-3.5 text-sm text-textPrimary hover:border-textSecondary/40 transition lowercase">
+<span class="flex items-center gap-2 font-medium font-mono text-[13px]">
+<svg class="w-4 h-4 text-textMuted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+          03:00 pm
+        </span>
+<svg class="w-4 h-4 text-textMuted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</button>
+</div>
+</div>
+<!-- 4. Place Selector Dropdown (Lowercase) -->
+<div>
+<label class="block text-xs font-semibold lowercase tracking-wider text-textSecondary mb-1.5">place / location</label>
+<div class="relative">
+<select class="w-full bg-surface border border-stroke rounded-2xl px-4 py-3.5 text-sm text-textPrimary appearance-none focus:outline-none focus:border-priorityBlue cursor-pointer lowercase">
+<option value="main-office">design studio (room 4b)</option>
+<option value="home">home office</option>
+<option value="coffee-lab">the roast coffee lab</option>
+<option value="google-meet">virtual google meet</option>
+<option value="custom">+ add new place...</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-textMuted">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+</div>
+<!-- 5. Remind When & Recurring (Lowercase) -->
+<div class="grid grid-cols-2 gap-3">
+<div>
+<label class="block text-xs font-semibold lowercase tracking-wider text-textSecondary mb-1.5">remind when</label>
+<div class="relative">
+<select class="w-full bg-surface border border-stroke rounded-2xl px-3.5 py-3 text-xs text-textPrimary appearance-none focus:outline-none focus:border-priorityBlue cursor-pointer lowercase">
+<option>15 mins before</option>
+<option>30 mins before</option>
+<option>at time of event</option>
+<option>1 day before</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-textMuted">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+</div>
+<div>
+<label class="block text-xs font-semibold lowercase tracking-wider text-textSecondary mb-1.5">recurring</label>
+<div class="relative">
+<select class="w-full bg-surface border border-stroke rounded-2xl px-3.5 py-3 text-xs text-textPrimary appearance-none focus:outline-none focus:border-priorityBlue cursor-pointer lowercase">
+<option>daily (default)</option>
+<option>weekly</option>
+<option>does not repeat</option>
+<option>custom</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-textMuted">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path></svg>
+</div>
+</div>
+</div>
+</div>
+<!-- 6. Subtasks List (Single-level max) -->
+<div class="pt-1">
+<div class="flex items-center justify-between mb-2">
+<label class="text-xs font-semibold lowercase tracking-wider text-textSecondary">
+        subtasks <span class="text-textMuted normal-case text-[11px]">(single-level max)</span>
+</label>
+</div>
+<div class="flex items-center max-w-full mb-3"><div class="relative flex-1 min-w-0"><input class="w-full bg-[#1c1f26] border border-stroke border-r-0 rounded-l-2xl rounded-r-none px-4 py-3 text-sm text-textPrimary placeholder:text-textMuted focus:outline-none h-12 lowercase shadow-inner" placeholder="name of subtask..." type="text"></div><div class="relative shrink-0"><button class="h-12 w-12 bg-mintGreen text-white flex items-center justify-center border-0 cursor-pointer" style="background-color: rgb(16, 185, 129);" title="priority"><svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path></svg></button></div><div class="relative shrink-0"><button class="h-12 w-12 bg-[#1c1f26] border border-stroke border-l-0 rounded-r-2xl rounded-l-none flex items-center justify-center text-textPrimary hover:bg-elevated transition cursor-pointer bg-white text-black dark:bg-white dark:text-black" title="add subtask"><svg class="w-5 h-5 text-textPrimary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 6v12m6-6H6" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path></svg></button></div></div><div class="space-y-2">
+<div class="flex items-center gap-2.5 bg-surface border border-stroke rounded-2xl px-4 py-2.5 text-sm">
+<input checked="" class="w-4 h-4 rounded border-stroke bg-elevated text-mintGreen focus:ring-0" type="checkbox" placeholder="on" value="">
+<span class="text-textSecondary line-through lowercase">compile metrics charts</span>
+</div>
+<div class="flex items-center gap-2.5 bg-surface border border-stroke rounded-2xl px-4 py-2.5 text-sm">
+<input class="w-4 h-4 rounded border-stroke bg-elevated text-mintGreen focus:ring-0" type="checkbox" placeholder="on" value="">
+<span class="text-textPrimary lowercase">export slide deck pdf</span>
+</div>
+</div>
+</div>
+<!-- 7. Note Context Field (Lowercase placeholder) -->
+<div>
+<label class="block text-xs font-semibold lowercase tracking-wider text-textSecondary mb-1.5">Note</label>
+<textarea class="w-full bg-surface border border-stroke rounded-2xl p-3.5 text-sm text-textPrimary placeholder:text-textMuted focus:outline-none focus:border-priorityBlue resize-none lowercase" placeholder="add detailed notes, links, or objectives..." rows="3"></textarea>
+</div>
+<!-- Action Row: Save Task + Discard -->
+<div class="pt-2 pb-3 flex items-center gap-3">
+<button class="flex-1 py-4 px-5 rounded-2xl bg-urgent text-white font-bold text-base shadow-glow-orange hover:bg-orange-600 active:scale-[0.99] transition flex items-center justify-center gap-2 lowercase" onclick="setDrawerState(false)">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"></path></svg>
+      save task
+    </button>
+<button class="px-5 py-4 rounded-2xl bg-surface border border-stroke text-textSecondary text-sm font-medium hover:text-textPrimary transition lowercase" onclick="setDrawerState(false)">
+      discard
+    </button>
+</div>
+</div>
+<!-- BEGIN: SimulatedVirtualKeyboard -->
+
+<!-- END: SimulatedVirtualKeyboard -->
+</div>
+<!-- END: ExpandedBottomDrawerModal -->
+</div>
+<!-- END: MobileDeviceContainer -->
+<!-- Interactive Scripts -->
+<script data-purpose="interaction-handlers">
+  // Functional Theme Toggle between Dark and Crisp Light Mode
+  function toggleTheme() {
+    const htmlEl = document.documentElement;
+    const isDark = htmlEl.classList.contains('dark');
+    const sunIcon = document.getElementById('themeSunIcon');
+    const moonIcon = document.getElementById('themeMoonIcon');
+    const themeLabel = document.getElementById('themeLabel');
+
+    if (isDark) {
+      htmlEl.classList.remove('dark');
+      if (sunIcon) sunIcon.classList.add('hidden');
+      if (moonIcon) moonIcon.classList.remove('hidden');
+      if (themeLabel) themeLabel.textContent = 'light';
+    } else {
+      htmlEl.classList.add('dark');
+      if (sunIcon) sunIcon.classList.remove('hidden');
+      if (moonIcon) moonIcon.classList.add('hidden');
+      if (themeLabel) themeLabel.textContent = 'dark';
+    }
+  }
+
+  // Visual feedback for settings icon trigger
+  function toggleSettingsFeedback() {
+    const quickInput = document.getElementById('quickTaskInput');
+    if (quickInput) {
+      const original = quickInput.placeholder;
+      quickInput.placeholder = "settings menu opened...";
+      setTimeout(() => { quickInput.placeholder = original; }, 1200);
+    }
+  }
+
+  function setDrawerState(isExpanded) {
+    const drawer = document.getElementById('expandedDrawer');
+    const collapsedBar = document.getElementById('collapsedBottomBar');
+    const activeInput = document.getElementById('activeTaskTitleInput');
+    const colorMenu = document.getElementById('toolbarColorMenu');
+
+    if (colorMenu) colorMenu.classList.add('hidden');
+
+    if (isExpanded) {
+      drawer.classList.remove('translate-y-full', 'opacity-0', 'pointer-events-none');
+      drawer.classList.add('translate-y-0', 'opacity-100');
+      collapsedBar.classList.add('translate-y-full');
+
+      if (activeInput) {
+        setTimeout(() => activeInput.focus(), 150);
+      }
+    } else {
+      drawer.classList.add('translate-y-full', 'opacity-0', 'pointer-events-none');
+      drawer.classList.remove('translate-y-0', 'opacity-100');
+      collapsedBar.classList.remove('translate-y-full');
+    }
+  }
+
+  // Toggle toolbar square priority dropdown menu
+  function toggleColorMenu(event) {
+    event.stopPropagation();
+    const menu = document.getElementById('toolbarColorMenu');
+    menu.classList.toggle('hidden');
+  }
+
+  // Choose priority square from toolbar dropdown: Orange (urgent), Blue (high), Green (low)
+  function selectToolbarPriority(colorHex, name, event) {
+    event.stopPropagation();
+    const toolbarColorBtn = document.getElementById('toolbarColorBtn');
+    const menu = document.getElementById('toolbarColorMenu');
+
+    if (toolbarColorBtn) {
+      toolbarColorBtn.style.backgroundColor = colorHex;
+    }
+    menu.classList.add('hidden');
+
+    // Sync with modal priority state
+    setModalPriority(name.toLowerCase(), colorHex);
+  }
+
+  // Modal priority selector handler
+  function setModalPriority(level, colorHex) {
+    const lowerLevel = level.toLowerCase();
+    const statusText = document.getElementById('priorityStatusText');
+    const modalIndicator = document.getElementById('modalPriorityIndicator');
+    const btnUrgent = document.getElementById('modalBtnUrgent');
+    const btnHigh = document.getElementById('modalBtnHigh');
+    const btnLow = document.getElementById('modalBtnLow');
+    const toolbarColorBtn = document.getElementById('toolbarColorBtn');
+
+    if (statusText) {
+      statusText.textContent = `${lowerLevel} active`;
+      statusText.style.color = colorHex;
+    }
+    if (modalIndicator) {
+      modalIndicator.style.backgroundColor = colorHex;
+    }
+    if (toolbarColorBtn) {
+      toolbarColorBtn.style.backgroundColor = colorHex;
+    }
+
+    // Reset styles
+    [btnUrgent, btnHigh, btnLow].forEach(btn => {
+      btn.className = "py-3 px-3 rounded-2xl text-sm font-medium bg-surface border border-stroke flex items-center justify-center gap-2 transition lowercase";
+    });
+
+    if (lowerLevel === 'urgent') {
+      btnUrgent.className = "py-3 px-3 rounded-2xl text-sm font-semibold bg-urgent text-white shadow-glow-orange border border-urgent flex items-center justify-center gap-2 transition lowercase";
+      btnHigh.className += " text-priorityBlue";
+      btnLow.className += " text-mintGreen";
+    } else if (lowerLevel === 'high') {
+      btnHigh.className = "py-3 px-3 rounded-2xl text-sm font-semibold bg-priorityBlue text-white shadow-glow-blue border border-priorityBlue flex items-center justify-center gap-2 transition lowercase";
+      btnUrgent.className += " text-urgent";
+      btnLow.className += " text-mintGreen";
+    } else if (lowerLevel === 'low') {
+      btnLow.className = "py-3 px-3 rounded-2xl text-sm font-semibold bg-mintGreen text-white border border-mintGreen flex items-center justify-center gap-2 transition lowercase";
+      btnUrgent.className += " text-urgent";
+      btnHigh.className += " text-priorityBlue";
+    }
+  }
+
+  // Close color menu on outside click
+  document.addEventListener('click', function(e) {
+    const menu = document.getElementById('toolbarColorMenu');
+    if (menu && !menu.classList.contains('hidden')) {
+      menu.classList.add('hidden');
+    }
+  });
+</script>
+
+
+</body></html>
