@@ -1,6 +1,6 @@
 export type PriorityLevel = 'urgent' | 'high' | 'low';
 export type FilterPeriod = 'daily' | 'weekly' | 'all';
-export type RecurrenceOption = 'daily' | 'weekly' | 'none' | 'custom';
+export type RecurrenceOption = 'daily' | 'weekly' | 'does_not_repeat';
 export type ReminderOption = '15_min_before' | '30_min_before' | 'at_time' | '1_day_before';
 
 export interface Subtask {
@@ -22,15 +22,18 @@ export interface TaskItemData {
   title: string;
   note?: string;
   priority: PriorityLevel;
-  startTime: string; // e.g., "09:00"
-  endTime?: string;  // e.g., "10:30 am"
-  date: string;      // e.g., "today, oct 24"
+  startTime: string; // e.g. "09:00 AM"
+  endTime: string;   // e.g. "10:30 AM"
+  date: string;      // e.g. "Oct 24, 2026"
+  dateTimestamp?: number;
   period: FilterPeriod;
   recurring?: RecurrenceOption;
   remindWhen?: ReminderOption;
   place: PlaceLocation;
   subtasks: Subtask[];
   isCompleted: boolean;
+  isDeleted?: boolean;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
   userId?: string;

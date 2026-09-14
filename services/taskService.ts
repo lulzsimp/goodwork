@@ -39,6 +39,8 @@ export const taskService = {
     const newTask: TaskItemData = {
       ...taskData,
       id: Date.now().toString(),
+      isCompleted: false,
+      isDeleted: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -63,27 +65,17 @@ export const taskService = {
     notifyListeners();
   },
 
-  // Toggle main task completion
+  // Toggle main task completion (also marks subtasks as completed if completing main task)
   toggleTaskCompletion: async (taskId: string, isCompleted: boolean): Promise<void> => {
-    memoryTasks = memoryTasks.map((t) =>
-      t.id === taskId
-        ? { ...t, isCompleted, updatedAt: new Date().toISOString() }
-        : t
-    );
-    await storageService.saveTasks(memoryTasks);
-    notifyListeners();
-  },
-
-  // Toggle subtask completion
-  toggleSubtask: async (taskId: string, subtaskId: string): Promise<void> => {
     memoryTasks = memoryTasks.map((t) => {
       if (t.id !== taskId) return t;
-      const updatedSubtasks = t.subtasks.map((s) =>
-        s.id === subtaskId ? { ...s, isCompleted: !s.isCompleted } : s
-      );
       return {
         ...t,
-        subtasks: updatedSubtasks,
+        isCompleted,
+        subtasks: t.subtasks.map((s) => ({
+          ...s,
+          isCompleted: isCompleted ? true : s.isCompleted,
+        })),
         updatedAt: new Date().toISOString(),
       };
     });
@@ -91,9 +83,58 @@ export const taskService = {
     notifyListeners();
   },
 
-  // Delete task
-  deleteTask: async (taskId: string): Promise<void> => {
+  // Toggle subtask completion (and auto-update main task completion if all subtasks done)
+  toggleSubtask: async (taskId: string, subtaskId: string): Promise<void> => {
+    memoryTasks = memoryTasks.map((t) => {
+      if (t.id !== taskId) return t;
+      const updatedSubtasks = t.subtasks.map((s) =>
+        s.id === subtaskId ? { ...s, isCompleted: !s.isCompleted } : s
+      );
+      const allSubtasksDone = updatedSubtasks.length > 0 && updatedSubtasks.every((s) => s.isCompleted);
+
+      return {
+        ...t,
+        subtasks: updatedSubtasks,
+        isCompleted: allSubtasksDone ? true : (updatedSubtasks.some((s) => !s.isCompleted) ? false : t.isCompleted),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    await storageService.saveTasks(memoryTasks);
+    notifyListeners();
+  },
+
+  // Soft Delete: Move task to Deleted (trash)
+  softDeleteTask: async (taskId: string): Promise<void> => {
+    memoryTasks = memoryTasks.map((t) =>
+      t.id === taskId
+        ? { ...t, isDeleted: true, deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+        : t
+    );
+    await storageService.saveTasks(memoryTasks);
+    notifyListeners();
+  },
+
+  // Restore task from Deleted (trash)
+  restoreTask: async (taskId: string): Promise<void> => {
+    memoryTasks = memoryTasks.map((t) =>
+      t.id === taskId
+        ? { ...t, isDeleted: false, deletedAt: undefined, updatedAt: new Date().toISOString() }
+        : t
+    );
+    await storageService.saveTasks(memoryTasks);
+    notifyListeners();
+  },
+
+  // Permanently delete task
+  permanentlyDeleteTask: async (taskId: string): Promise<void> => {
     memoryTasks = memoryTasks.filter((t) => t.id !== taskId);
+    await storageService.saveTasks(memoryTasks);
+    notifyListeners();
+  },
+
+  // Empty trash / purge all deleted tasks
+  purgeDeletedTasks: async (): Promise<void> => {
+    memoryTasks = memoryTasks.filter((t) => !t.isDeleted);
     await storageService.saveTasks(memoryTasks);
     notifyListeners();
   },

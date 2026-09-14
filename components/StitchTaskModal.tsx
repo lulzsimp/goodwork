@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { PriorityColors, Themes, Typography, ThemeMode } from '../constants/theme';
 import { TaskItemData, PriorityLevel, Subtask } from '../types/task';
+import { CrossPlatformDateTimePicker } from './CrossPlatformDateTimePicker';
 import { Feather, Ionicons } from '@expo/vector-icons';
 
 interface StitchTaskModalProps {
@@ -23,6 +24,19 @@ interface StitchTaskModalProps {
   onSave: (task: Omit<TaskItemData, 'id' | 'createdAt' | 'updatedAt'>) => void;
   onToggleSubtask?: (taskId: string, subtaskId: string) => void;
 }
+
+const PRESET_REMINDS = [
+  '15 mins before',
+  '30 mins before',
+  'at time of event',
+  '1 day before',
+];
+
+const PRESET_RECURRINGS = [
+  'daily (default)',
+  'weekly',
+  'does not repeat',
+];
 
 export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
   visible,
@@ -37,52 +51,120 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
 
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState<PriorityLevel>(initialPriority);
-  const [dateStr, setDateStr] = useState('today, oct 24');
-  const [timeStr, setTimeStr] = useState('03:00 pm');
+  
+  // Date & Times (Separate Start and End times with full interactive calendar)
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [startTimeObj, setStartTimeObj] = useState<{ hour: number; minute: number; period: 'AM' | 'PM' }>({
+    hour: 9,
+    minute: 0,
+    period: 'AM',
+  });
+  const [endTimeObj, setEndTimeObj] = useState<{ hour: number; minute: number; period: 'AM' | 'PM' }>({
+    hour: 10,
+    minute: 30,
+    period: 'AM',
+  });
+
+  const [isPickerExpanded, setIsPickerExpanded] = useState<boolean>(false);
+  const [pickerActiveTab, setPickerActiveTab] = useState<'date' | 'start' | 'end'>('date');
+
   const [placeName, setPlaceName] = useState('design studio (room 4b)');
   const [remindWhen, setRemindWhen] = useState('15 mins before');
   const [recurring, setRecurring] = useState('daily (default)');
   const [note, setNote] = useState('');
-  
+
+  // Dropdown open states for remind and recurring
+  const [openDropdown, setOpenDropdown] = useState<'remind' | 'recurring' | null>(null);
+
   // Subtasks list
   const [subtasks, setSubtasks] = useState<Subtask[]>([
     { id: '1', title: 'compile metrics charts', isCompleted: true },
     { id: '2', title: 'export slide deck pdf', isCompleted: false },
   ]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  
+  // Subtask editing in-place
+  const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [editingSubtaskText, setEditingSubtaskText] = useState('');
+
+  const parseTimeStr = (tStr: string) => {
+    try {
+      const match = tStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+      if (match) {
+        return {
+          hour: parseInt(match[1], 10),
+          minute: parseInt(match[2], 10),
+          period: (match[3]?.toUpperCase() as 'AM' | 'PM') || 'AM',
+        };
+      }
+    } catch (e) {}
+    return { hour: 9, minute: 0, period: 'AM' as const };
+  };
 
   useEffect(() => {
     if (editingTask) {
       setTitle(editingTask.title);
       setPriority(editingTask.priority);
-      setDateStr(editingTask.date || 'today, oct 24');
-      setTimeStr(`${editingTask.startTime}${editingTask.endTime ? ' - ' + editingTask.endTime : ''}`);
       setPlaceName(editingTask.place.name);
       setNote(editingTask.note || '');
       setSubtasks(editingTask.subtasks || []);
+      
+      if (editingTask.startTime) {
+        setStartTimeObj(parseTimeStr(editingTask.startTime));
+      }
+      if (editingTask.endTime) {
+        setEndTimeObj(parseTimeStr(editingTask.endTime));
+      }
+      if (editingTask.dateTimestamp) {
+        setSelectedDate(new Date(editingTask.dateTimestamp));
+      } else if (editingTask.date) {
+        const parsed = new Date(editingTask.date);
+        if (!isNaN(parsed.getTime())) setSelectedDate(parsed);
+      }
     } else {
       setTitle('');
       setPriority(initialPriority);
-      setDateStr('today, oct 24');
-      setTimeStr('03:00 pm');
       setPlaceName('design studio (room 4b)');
       setNote('');
+      setStartTimeObj({ hour: 9, minute: 0, period: 'AM' });
+      setEndTimeObj({ hour: 10, minute: 30, period: 'AM' });
+      setSelectedDate(new Date());
       setSubtasks([
         { id: '1', title: 'compile metrics charts', isCompleted: true },
         { id: '2', title: 'export slide deck pdf', isCompleted: false },
       ]);
     }
+    setOpenDropdown(null);
+    setIsPickerExpanded(false);
+    setEditingSubtaskId(null);
   }, [editingTask, initialPriority, visible]);
 
   const pColor = PriorityColors[priority];
+  const isVirtualPlace = placeName.toLowerCase().includes('meet') || placeName.toLowerCase().includes('zoom');
 
+  // Format Helpers
+  const formatDateString = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  };
+
+  const formatTimeString = (t: { hour: number; minute: number; period: 'AM' | 'PM' }) => {
+    const h = t.hour < 10 ? `0${t.hour}` : t.hour;
+    const m = t.minute < 10 ? `0${t.minute}` : t.minute;
+    return `${h}:${m} ${t.period}`;
+  };
+
+  // Subtask Handlers
   const handleAddSubtask = () => {
     if (!newSubtaskTitle.trim()) return;
     setSubtasks([
       ...subtasks,
       {
         id: Date.now().toString(),
-        title: newSubtaskTitle.trim(),
+        title: newSubtaskTitle.trim().toLowerCase(),
         isCompleted: false,
       },
     ]);
@@ -100,22 +182,42 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
     );
   };
 
+  const handleStartEditSubtask = (sub: Subtask) => {
+    setEditingSubtaskId(sub.id);
+    setEditingSubtaskText(sub.title);
+  };
+
+  const handleSaveEditSubtask = (subId: string) => {
+    if (editingSubtaskText.trim()) {
+      setSubtasks(
+        subtasks.map((s) =>
+          s.id === subId ? { ...s, title: editingSubtaskText.trim().toLowerCase() } : s
+        )
+      );
+    }
+    setEditingSubtaskId(null);
+  };
+
+  const handleDeleteSubtask = (subId: string) => {
+    setSubtasks(subtasks.filter((s) => s.id !== subId));
+  };
+
   const handleSave = () => {
     if (!title.trim()) return;
-    const isVirtual = placeName.toLowerCase().includes('meet') || placeName.toLowerCase().includes('zoom');
 
     onSave({
       title: title.trim(),
       note: note.trim() || undefined,
       priority,
-      startTime: timeStr.includes('-') ? timeStr.split('-')[0].trim() : '03:00',
-      endTime: timeStr.includes('-') ? timeStr.split('-')[1].trim() : '04:00 pm',
-      date: dateStr,
+      startTime: formatTimeString(startTimeObj),
+      endTime: formatTimeString(endTimeObj),
+      date: formatDateString(selectedDate),
+      dateTimestamp: selectedDate.getTime(),
       period: 'daily',
       place: {
-        id: placeName.toLowerCase().replace(/\s+/g, '-'),
-        name: placeName,
-        type: isVirtual ? 'virtual' : 'physical',
+        id: placeName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+        name: placeName.trim() || 'general space',
+        type: isVirtualPlace ? 'virtual' : 'physical',
       },
       subtasks,
       isCompleted: editingTask ? editingTask.isCompleted : false,
@@ -171,7 +273,7 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
                 { backgroundColor: theme.surface, borderColor: theme.stroke },
               ]}
             >
-              <Ionicons name="close" size={18} color={theme.textSecondary} />
+              <Ionicons name="close" size={20} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
 
@@ -179,6 +281,7 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
           >
             {/* 1. Task Name Input */}
             <View style={styles.fieldSection}>
@@ -277,9 +380,9 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
               </View>
             </View>
 
-            {/* 3. Date & Time Row */}
-            <View style={styles.gridTwo}>
-              <View style={styles.gridCol}>
+            {/* 3. Cross-Platform Interactive Date & Time Schedule Card */}
+            <View style={styles.fieldSection}>
+              <View style={styles.labelRow}>
                 <Text
                   style={[
                     styles.fieldLabel,
@@ -289,70 +392,128 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
                     },
                   ]}
                 >
-                  date
+                  schedule & time slots
                 </Text>
-                <View
-                  style={[
-                    styles.selectorBox,
-                    { backgroundColor: theme.surface, borderColor: theme.stroke },
-                  ]}
+                <TouchableOpacity
+                  onPress={() => setIsPickerExpanded(!isPickerExpanded)}
+                  style={styles.expandToggle}
                 >
-                  <View style={styles.selectorLeft}>
-                    <Feather name="calendar" size={14} color={theme.textMuted} />
-                    <Text
-                      style={[
-                        styles.selectorText,
-                        {
-                          color: theme.textPrimary,
-                          fontFamily: Typography.fontFamily.sansMedium,
-                        },
-                      ]}
-                    >
-                      {dateStr}
-                    </Text>
-                  </View>
-                  <Feather name="chevron-down" size={14} color={theme.textMuted} />
-                </View>
+                  <Text style={[styles.expandToggleText, { color: pColor.main }]}>
+                    {isPickerExpanded ? 'collapse' : 'change date/time'}
+                  </Text>
+                  <Feather
+                    name={isPickerExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={14}
+                    color={pColor.main}
+                  />
+                </TouchableOpacity>
               </View>
 
-              <View style={styles.gridCol}>
-                <Text
+              {/* Summary Selector Trigger Row */}
+              <View style={styles.gridSchedule}>
+                {/* Date Button */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setPickerActiveTab('date');
+                    setIsPickerExpanded(true);
+                  }}
                   style={[
-                    styles.fieldLabel,
-                    {
-                      color: theme.textSecondary,
-                      fontFamily: Typography.fontFamily.sansSemiBold,
-                    },
-                  ]}
-                >
-                  time
-                </Text>
-                <View
-                  style={[
-                    styles.selectorBox,
+                    styles.scheduleTriggerBox,
                     { backgroundColor: theme.surface, borderColor: theme.stroke },
+                    isPickerExpanded && pickerActiveTab === 'date' && { borderColor: pColor.main },
                   ]}
                 >
-                  <View style={styles.selectorLeft}>
-                    <Feather name="clock" size={14} color={theme.textMuted} />
+                  <Feather name="calendar" size={16} color={pColor.main} />
+                  <View style={{ marginLeft: 8, flex: 1 }}>
+                    <Text style={[styles.microLabel, { color: theme.textMuted }]}>date</Text>
                     <Text
+                      numberOfLines={1}
                       style={[
-                        styles.selectorText,
-                        {
-                          color: theme.textPrimary,
-                          fontFamily: Typography.fontFamily.sansMedium,
-                        },
+                        styles.scheduleTriggerText,
+                        { color: theme.textPrimary, fontFamily: Typography.fontFamily.sansBold },
                       ]}
                     >
-                      {timeStr}
+                      {formatDateString(selectedDate)}
                     </Text>
                   </View>
-                  <Feather name="chevron-down" size={14} color={theme.textMuted} />
-                </View>
+                </TouchableOpacity>
+
+                {/* Start Time Button */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setPickerActiveTab('start');
+                    setIsPickerExpanded(true);
+                  }}
+                  style={[
+                    styles.scheduleTriggerBox,
+                    { backgroundColor: theme.surface, borderColor: theme.stroke },
+                    isPickerExpanded && pickerActiveTab === 'start' && { borderColor: pColor.main },
+                  ]}
+                >
+                  <Feather name="clock" size={16} color={pColor.main} />
+                  <View style={{ marginLeft: 8, flex: 1 }}>
+                    <Text style={[styles.microLabel, { color: theme.textMuted }]}>start</Text>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.scheduleTriggerText,
+                        { color: theme.textPrimary, fontFamily: Typography.fontFamily.sansBold },
+                      ]}
+                    >
+                      {formatTimeString(startTimeObj)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {/* End Time Button */}
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    setPickerActiveTab('end');
+                    setIsPickerExpanded(true);
+                  }}
+                  style={[
+                    styles.scheduleTriggerBox,
+                    { backgroundColor: theme.surface, borderColor: theme.stroke },
+                    isPickerExpanded && pickerActiveTab === 'end' && { borderColor: pColor.main },
+                  ]}
+                >
+                  <Feather name="clock" size={16} color={pColor.main} />
+                  <View style={{ marginLeft: 8, flex: 1 }}>
+                    <Text style={[styles.microLabel, { color: theme.textMuted }]}>end</Text>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.scheduleTriggerText,
+                        { color: theme.textPrimary, fontFamily: Typography.fontFamily.sansBold },
+                      ]}
+                    >
+                      {formatTimeString(endTimeObj)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               </View>
+
+              {/* Expandable Embedded Cross-Platform Interactive Picker */}
+              {isPickerExpanded && (
+                <CrossPlatformDateTimePicker
+                  themeMode={themeMode}
+                  selectedDate={selectedDate}
+                  startTime={startTimeObj}
+                  endTime={endTimeObj}
+                  activeTab={pickerActiveTab}
+                  onTabChange={setPickerActiveTab}
+                  onDateChange={setSelectedDate}
+                  onStartTimeChange={setStartTimeObj}
+                  onEndTimeChange={setEndTimeObj}
+                  priorityColor={pColor.main}
+                />
+              )}
             </View>
 
-            {/* 4. Place / Location Selector */}
+            {/* 4. Place / Location Direct Text Input Field */}
             <View style={styles.fieldSection}>
               <Text
                 style={[
@@ -367,30 +528,34 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
               </Text>
               <View
                 style={[
-                  styles.selectorBox,
+                  styles.locationInputBox,
                   { backgroundColor: theme.surface, borderColor: theme.stroke },
                 ]}
               >
-                <View style={styles.selectorLeft}>
-                  <Ionicons name="location-outline" size={16} color={theme.textMuted} />
-                  <Text
-                    style={[
-                      styles.selectorText,
-                      {
-                        color: theme.textPrimary,
-                        fontFamily: Typography.fontFamily.sansMedium,
-                      },
-                    ]}
-                  >
-                    {placeName}
-                  </Text>
-                </View>
-                <Feather name="chevron-down" size={14} color={theme.textMuted} />
+                {isVirtualPlace ? (
+                  <Ionicons name="videocam-outline" size={20} color={pColor.main} style={styles.locationIcon} />
+                ) : (
+                  <Ionicons name="location-outline" size={20} color={theme.textMuted} style={styles.locationIcon} />
+                )}
+                <TextInput
+                  value={placeName}
+                  onChangeText={setPlaceName}
+                  placeholder="e.g. design studio, room 4b, virtual google meet..."
+                  placeholderTextColor={theme.textMuted}
+                  style={[
+                    styles.locationInput,
+                    {
+                      color: theme.textPrimary,
+                      fontFamily: Typography.fontFamily.sansMedium,
+                    },
+                  ]}
+                />
               </View>
             </View>
 
-            {/* 5. Remind When & Recurring */}
+            {/* 5. Remind When & Recurring (Cleaned of custom recurrence) */}
             <View style={styles.gridTwo}>
+              {/* Remind Dropdown */}
               <View style={styles.gridCol}>
                 <Text
                   style={[
@@ -403,13 +568,16 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
                 >
                   remind when
                 </Text>
-                <View
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setOpenDropdown(openDropdown === 'remind' ? null : 'remind')}
                   style={[
                     styles.selectorBoxSmall,
                     { backgroundColor: theme.surface, borderColor: theme.stroke },
                   ]}
                 >
                   <Text
+                    numberOfLines={1}
                     style={[
                       styles.selectorTextSmall,
                       {
@@ -420,10 +588,50 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
                   >
                     {remindWhen}
                   </Text>
-                  <Feather name="chevron-down" size={12} color={theme.textMuted} />
-                </View>
+                  <Feather
+                    name={openDropdown === 'remind' ? 'chevron-up' : 'chevron-down'}
+                    size={14}
+                    color={theme.textMuted}
+                  />
+                </TouchableOpacity>
+
+                {openDropdown === 'remind' && (
+                  <View
+                    style={[
+                      styles.dropdownMenu,
+                      { backgroundColor: theme.surface, borderColor: theme.stroke },
+                    ]}
+                  >
+                    {PRESET_REMINDS.map((r) => (
+                      <TouchableOpacity
+                        key={r}
+                        onPress={() => {
+                          setRemindWhen(r);
+                          setOpenDropdown(null);
+                        }}
+                        style={[
+                          styles.dropdownItem,
+                          remindWhen === r && { backgroundColor: theme.elevated },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dropdownItemText,
+                            {
+                              color: remindWhen === r ? pColor.main : theme.textPrimary,
+                              fontFamily: Typography.fontFamily.sans,
+                            },
+                          ]}
+                        >
+                          {r}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
 
+              {/* Recurring Dropdown (without custom) */}
               <View style={styles.gridCol}>
                 <Text
                   style={[
@@ -436,13 +644,16 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
                 >
                   recurring
                 </Text>
-                <View
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  onPress={() => setOpenDropdown(openDropdown === 'recurring' ? null : 'recurring')}
                   style={[
                     styles.selectorBoxSmall,
                     { backgroundColor: theme.surface, borderColor: theme.stroke },
                   ]}
                 >
                   <Text
+                    numberOfLines={1}
                     style={[
                       styles.selectorTextSmall,
                       {
@@ -453,24 +664,68 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
                   >
                     {recurring}
                   </Text>
-                  <Feather name="chevron-down" size={12} color={theme.textMuted} />
-                </View>
+                  <Feather
+                    name={openDropdown === 'recurring' ? 'chevron-up' : 'chevron-down'}
+                    size={14}
+                    color={theme.textMuted}
+                  />
+                </TouchableOpacity>
+
+                {openDropdown === 'recurring' && (
+                  <View
+                    style={[
+                      styles.dropdownMenu,
+                      { backgroundColor: theme.surface, borderColor: theme.stroke },
+                    ]}
+                  >
+                    {PRESET_RECURRINGS.map((rc) => (
+                      <TouchableOpacity
+                        key={rc}
+                        onPress={() => {
+                          setRecurring(rc);
+                          setOpenDropdown(null);
+                        }}
+                        style={[
+                          styles.dropdownItem,
+                          recurring === rc && { backgroundColor: theme.elevated },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dropdownItemText,
+                            {
+                              color: recurring === rc ? pColor.main : theme.textPrimary,
+                              fontFamily: Typography.fontFamily.sans,
+                            },
+                          ]}
+                        >
+                          {rc}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
               </View>
             </View>
 
-            {/* 6. Subtasks List with Quick-Add */}
+            {/* 6. Editable Subtasks List */}
             <View style={styles.fieldSection}>
-              <Text
-                style={[
-                  styles.fieldLabel,
-                  {
-                    color: theme.textSecondary,
-                    fontFamily: Typography.fontFamily.sansSemiBold,
-                  },
-                ]}
-              >
-                subtasks <Text style={{ color: theme.textMuted, fontSize: 11 }}>(single-level max)</Text>
-              </Text>
+              <View style={styles.labelRow}>
+                <Text
+                  style={[
+                    styles.fieldLabel,
+                    {
+                      color: theme.textSecondary,
+                      fontFamily: Typography.fontFamily.sansSemiBold,
+                    },
+                  ]}
+                >
+                  subtasks <Text style={{ color: theme.textMuted, fontSize: 13 }}>(tap to edit / remove)</Text>
+                </Text>
+                <Text style={[styles.subtaskCountLabel, { color: pColor.main }]}>
+                  {subtasks.filter((s) => s.isCompleted).length}/{subtasks.length}
+                </Text>
+              </View>
 
               {/* Subtask Input Bar */}
               <View style={styles.subtaskInputBar}>
@@ -497,17 +752,15 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
                     { backgroundColor: pColor.main },
                   ]}
                 >
-                  <Feather name="plus" size={18} color="#FFFFFF" />
+                  <Feather name="plus" size={20} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
 
-              {/* Subtask items */}
+              {/* Subtask items with edit and delete options */}
               <View style={styles.subtaskItemsList}>
                 {subtasks.map((st) => (
-                  <TouchableOpacity
+                  <View
                     key={st.id}
-                    activeOpacity={0.7}
-                    onPress={() => handleToggleLocalSubtask(st.id)}
                     style={[
                       styles.subtaskItem,
                       {
@@ -516,7 +769,10 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
                       },
                     ]}
                   >
-                    <View
+                    {/* Checkbox */}
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      onPress={() => handleToggleLocalSubtask(st.id)}
                       style={[
                         styles.subtaskCheck,
                         {
@@ -528,22 +784,80 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
                       ]}
                     >
                       {st.isCompleted && (
-                        <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                        <Ionicons name="checkmark" size={14} color="#FFFFFF" />
                       )}
-                    </View>
-                    <Text
-                      style={[
-                        styles.subtaskItemTitle,
-                        {
-                          color: st.isCompleted ? theme.textSecondary : theme.textPrimary,
-                          textDecorationLine: st.isCompleted ? 'line-through' : 'none',
-                          fontFamily: Typography.fontFamily.sans,
-                        },
-                      ]}
-                    >
-                      {st.title}
-                    </Text>
-                  </TouchableOpacity>
+                    </TouchableOpacity>
+
+                    {/* Inline Text or Edit Input */}
+                    {editingSubtaskId === st.id ? (
+                      <View style={styles.subtaskEditRow}>
+                        <TextInput
+                          value={editingSubtaskText}
+                          onChangeText={setEditingSubtaskText}
+                          autoFocus
+                          onSubmitEditing={() => handleSaveEditSubtask(st.id)}
+                          style={[
+                            styles.subtaskEditInput,
+                            {
+                              backgroundColor: theme.elevated,
+                              borderColor: theme.stroke,
+                              color: theme.textPrimary,
+                            },
+                          ]}
+                        />
+                        <TouchableOpacity
+                          onPress={() => handleSaveEditSubtask(st.id)}
+                          style={[styles.subtaskActionBtn, { backgroundColor: PriorityColors.low.main }]}
+                        >
+                          <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => setEditingSubtaskId(null)}
+                          style={[styles.subtaskActionBtn, { backgroundColor: theme.elevated }]}
+                        >
+                          <Ionicons name="close" size={16} color={theme.textMuted} />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <>
+                        <TouchableOpacity
+                          style={{ flex: 1 }}
+                          onPress={() => handleStartEditSubtask(st)}
+                        >
+                          <Text
+                            style={[
+                              styles.subtaskItemTitle,
+                              {
+                                color: st.isCompleted ? theme.textSecondary : theme.textPrimary,
+                                textDecorationLine: st.isCompleted ? 'line-through' : 'none',
+                                fontFamily: Typography.fontFamily.sans,
+                              },
+                            ]}
+                          >
+                            {st.title}
+                          </Text>
+                        </TouchableOpacity>
+
+                        {/* Edit and Delete buttons */}
+                        <View style={styles.subtaskItemActions}>
+                          <TouchableOpacity
+                            onPress={() => handleStartEditSubtask(st)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={styles.subtaskSmallBtn}
+                          >
+                            <Feather name="edit-2" size={15} color={theme.textMuted} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => handleDeleteSubtask(st.id)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={styles.subtaskSmallBtn}
+                          >
+                            <Feather name="trash" size={15} color="#EF4444" />
+                          </TouchableOpacity>
+                        </View>
+                      </>
+                    )}
+                  </View>
                 ))}
               </View>
             </View>
@@ -590,7 +904,7 @@ export const StitchTaskModal: React.FC<StitchTaskModalProps> = ({
                   { backgroundColor: pColor.main },
                 ]}
               >
-                <Feather name="check" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                <Feather name="check" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
                 <Text
                   style={[
                     styles.saveBtnText,
@@ -639,212 +953,296 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   drawerContainer: {
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
     borderTopWidth: 1,
-    maxHeight: '90%',
-    paddingBottom: 24,
+    maxHeight: '92%',
+    paddingBottom: 28,
   },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: 22,
+    paddingVertical: 18,
     borderBottomWidth: 1,
   },
   headerTitleGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   priorityIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 3,
+    width: 14,
+    height: 14,
+    borderRadius: 4,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     letterSpacing: -0.3,
   },
   closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 30,
+    paddingHorizontal: 22,
+    paddingTop: 18,
+    paddingBottom: 36,
   },
   fieldSection: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   fieldLabel: {
-    fontSize: 11,
+    fontSize: 13,
     letterSpacing: 0.5,
-    marginBottom: 6,
+    marginBottom: 8,
     textTransform: 'lowercase',
   },
   labelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
+  },
+  expandToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  expandToggleText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  gridSchedule: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  scheduleTriggerBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1.5,
+  },
+  microLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+  },
+  scheduleTriggerText: {
+    fontSize: 13,
+    marginTop: 2,
   },
   priorityStatus: {
-    fontSize: 11,
+    fontSize: 13,
     textTransform: 'lowercase',
   },
   inputLarge: {
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1.5,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 15,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    fontSize: 17,
   },
   priorityGrid: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   priorityBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 6,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    gap: 8,
   },
   priorityBoxDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 3,
   },
   priorityBtnText: {
-    fontSize: 13,
+    fontSize: 15,
   },
   gridTwo: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+    gap: 12,
+    marginBottom: 18,
   },
   gridCol: {
     flex: 1,
   },
-  selectorBox: {
+  locationInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 18,
+    borderWidth: 1.5,
+    paddingHorizontal: 16,
+    height: 54,
+  },
+  locationIcon: {
+    marginRight: 10,
+  },
+  locationInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 0,
+  },
+  selectorBoxSmall: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  selectorTextSmall: {
+    fontSize: 14,
+  },
+  dropdownMenu: {
+    marginTop: 6,
+    borderRadius: 18,
     borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  selectorLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  selectorText: {
-    fontSize: 13,
-  },
-  selectorBoxSmall: {
+  dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  selectorTextSmall: {
-    fontSize: 12,
+  dropdownItemText: {
+    fontSize: 14,
+    textTransform: 'lowercase',
+  },
+  subtaskCountLabel: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   subtaskInputBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   subtaskInput: {
     flex: 1,
-    borderTopLeftRadius: 14,
-    borderBottomLeftRadius: 14,
-    borderWidth: 1,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
+    borderWidth: 1.5,
     borderRightWidth: 0,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 13,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 15,
   },
   subtaskAddBtn: {
-    width: 44,
-    height: 44,
-    borderTopRightRadius: 14,
-    borderBottomRightRadius: 14,
+    width: 48,
+    height: 48,
+    borderTopRightRadius: 16,
+    borderBottomRightRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   subtaskItemsList: {
-    gap: 8,
+    gap: 10,
   },
   subtaskItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    gap: 12,
   },
   subtaskCheck: {
-    width: 18,
-    height: 18,
-    borderRadius: 5,
-    borderWidth: 1,
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   subtaskItemTitle: {
-    fontSize: 13,
+    fontSize: 15,
+  },
+  subtaskItemActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  subtaskSmallBtn: {
+    padding: 4,
+  },
+  subtaskEditRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  subtaskEditInput: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 14,
+  },
+  subtaskActionBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textArea: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 14,
-    fontSize: 13,
-    height: 76,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    padding: 16,
+    fontSize: 15,
+    height: 84,
     textAlignVertical: 'top',
   },
   actionRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 8,
+    gap: 12,
+    marginTop: 10,
   },
   saveBtn: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 16,
+    paddingVertical: 16,
+    borderRadius: 18,
   },
   saveBtnText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 17,
   },
   discardBtn: {
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    borderRadius: 16,
-    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderRadius: 18,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   discardBtnText: {
-    fontSize: 14,
+    fontSize: 16,
   },
 });

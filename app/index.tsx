@@ -67,8 +67,9 @@ export default function HomeScreen() {
             id: '',
             title: quickTitle,
             priority: selectedPriority,
-            startTime: '03:00',
-            date: 'today, oct 24',
+            startTime: '09:00 AM',
+            endTime: '10:30 AM',
+            date: 'Oct 24, 2026',
             period: 'daily',
             place: { id: 'office', name: 'design studio (room 4b)', type: 'physical' },
             subtasks: [],
@@ -186,9 +187,9 @@ export default function HomeScreen() {
               ]}
             >
               {themeMode === 'light' ? (
-                <Ionicons name="moon-outline" size={16} color={PriorityColors.high.main} />
+                <Ionicons name="moon-outline" size={18} color={PriorityColors.high.main} />
               ) : (
-                <Feather name="sun" size={16} color={PriorityColors.urgent.main} />
+                <Feather name="sun" size={18} color={PriorityColors.urgent.main} />
               )}
             </TouchableOpacity>
 
@@ -204,7 +205,7 @@ export default function HomeScreen() {
                 },
               ]}
             >
-              <Feather name="user" size={16} color={theme.textSecondary} />
+              <Feather name="user" size={18} color={theme.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -313,9 +314,9 @@ export default function HomeScreen() {
           >
             <Feather
               name="search"
-              size={15}
+              size={18}
               color={theme.textMuted}
-              style={{ marginRight: 8 }}
+              style={{ marginRight: 10 }}
             />
             <TextInput
               placeholder="search &quot;keyword&quot; place:@location"
@@ -370,7 +371,7 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="sparkles-outline" size={40} color={theme.textMuted} />
+            <Ionicons name="sparkles-outline" size={48} color={theme.textMuted} />
             <Text
               style={[
                 styles.emptyTitle,
@@ -436,32 +437,32 @@ const styles = StyleSheet.create({
   headerSection: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
+    paddingBottom: 16,
+    borderBottomWidth: 1.5,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   greetingText: {
-    fontSize: 26,
+    fontSize: 28,
     letterSpacing: -0.5,
   },
   greetingSub: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '400',
   },
   headerActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    borderWidth: 1,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -469,18 +470,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   periodSegment: {
     flexDirection: 'row',
-    padding: 3,
-    borderRadius: 14,
-    borderWidth: 1,
+    padding: 3.5,
+    borderRadius: 16,
+    borderWidth: 1.5,
   },
   periodTab: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 11,
   },
   periodTabActive: {
     shadowOffset: { width: 0, height: 1 },
@@ -489,60 +490,60 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   periodTabText: {
-    fontSize: 12,
+    fontSize: 14,
     textTransform: 'lowercase',
   },
   priorityChipsRow: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 8,
   },
   priorityChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 10,
-    borderWidth: 1,
-    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    gap: 6,
   },
   chipDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
   },
   chipText: {
-    fontSize: 11,
+    fontSize: 13,
     textTransform: 'lowercase',
   },
   searchContainer: {
-    marginTop: 2,
+    marginTop: 4,
   },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    height: 40,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    paddingHorizontal: 14,
+    height: 46,
   },
   searchInput: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 14,
     paddingVertical: 0,
   },
   comfBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
     borderWidth: 1,
   },
   comfText: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: 'monospace',
   },
   feedContent: {
     paddingTop: 16,
-    paddingBottom: 120,
+    paddingBottom: 130,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -551,12 +552,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
   },
   emptyTitle: {
-    fontSize: 16,
-    marginTop: 12,
+    fontSize: 18,
+    marginTop: 14,
   },
   emptySubtitle: {
-    fontSize: 13,
+    fontSize: 15,
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 6,
   },
 });

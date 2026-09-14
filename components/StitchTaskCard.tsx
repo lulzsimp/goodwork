@@ -1,15 +1,12 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  runOnJS,
-} from 'react-native-reanimated';
+import React, { useState, useRef } from 'react';
 import {
-  Gesture,
-  GestureDetector,
-} from 'react-native-gesture-handler';
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  PanResponder,
+  Animated,
+} from 'react-native';
 import { PriorityColors, Themes, Typography, ThemeMode } from '../constants/theme';
 import { TaskItemData, Subtask } from '../types/task';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -23,7 +20,7 @@ interface StitchTaskCardProps {
   onDelete: (taskId: string) => void;
 }
 
-const SWIPE_THRESHOLD = 80;
+const SWIPE_THRESHOLD = 65;
 
 export const StitchTaskCard: React.FC<StitchTaskCardProps> = ({
   task,
@@ -37,7 +34,7 @@ export const StitchTaskCard: React.FC<StitchTaskCardProps> = ({
   const pColor = PriorityColors[task.priority];
 
   const [isExpanded, setIsExpanded] = useState(true);
-  const translateX = useSharedValue(0);
+  const pan = useRef(new Animated.Value(0)).current;
 
   // Separate and sort subtasks: Unfinished first, finished moved down
   const unfinishedSubtasks = task.subtasks.filter((s) => !s.isCompleted);
@@ -47,23 +44,28 @@ export const StitchTaskCard: React.FC<StitchTaskCardProps> = ({
   const completedSubtasks = finishedSubtasks.length;
   const totalSubtasks = task.subtasks.length;
 
-  const panGesture = Gesture.Pan()
-    .activeOffsetX([-15, 15])
-    .onUpdate((e) => {
-      translateX.value = e.translationX;
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        pan.setValue(gestureState.dx);
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx > SWIPE_THRESHOLD) {
+          onToggleComplete(task);
+        } else if (gestureState.dx < -SWIPE_THRESHOLD) {
+          onDelete(task.id);
+        }
+        Animated.spring(pan, {
+          toValue: 0,
+          useNativeDriver: false,
+          friction: 6,
+        }).start();
+      },
     })
-    .onEnd((e) => {
-      if (e.translationX > SWIPE_THRESHOLD) {
-        runOnJS(onToggleComplete)(task);
-      } else if (e.translationX < -SWIPE_THRESHOLD) {
-        runOnJS(onDelete)(task.id);
-      }
-      translateX.value = withSpring(0, { damping: 18, stiffness: 180 });
-    });
-
-  const cardAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
+  ).current;
 
   return (
     <View style={styles.outerContainer}>
@@ -72,7 +74,7 @@ export const StitchTaskCard: React.FC<StitchTaskCardProps> = ({
         <View style={styles.gestureLeft}>
           <Ionicons
             name={task.isCompleted ? 'arrow-undo-outline' : 'checkmark-circle-outline'}
-            size={22}
+            size={24}
             color={PriorityColors.low.main}
           />
           <Text style={[styles.gestureText, { color: PriorityColors.low.main }]}>
@@ -81,314 +83,318 @@ export const StitchTaskCard: React.FC<StitchTaskCardProps> = ({
         </View>
         <View style={styles.gestureRight}>
           <Text style={[styles.gestureText, { color: '#EF4444' }]}>delete</Text>
-          <Feather name="trash-2" size={20} color="#EF4444" />
+          <Feather name="trash-2" size={22} color="#EF4444" />
         </View>
       </View>
 
-      <GestureDetector gesture={panGesture}>
-        <Animated.View style={[cardAnimatedStyle]}>
-          <TouchableOpacity
-            activeOpacity={0.92}
-            onPress={onPress}
+      <Animated.View
+        style={{ transform: [{ translateX: pan }] }}
+        {...panResponder.panHandlers}
+      >
+        <TouchableOpacity
+          activeOpacity={0.92}
+          onPress={onPress}
+          style={[
+            styles.card,
+            {
+              backgroundColor: theme.surface,
+              borderColor: theme.stroke,
+              opacity: task.isCompleted ? 0.65 : 1,
+            },
+          ]}
+        >
+          {/* Leftmost Continuous Railway Spine Track */}
+          <View
             style={[
-              styles.card,
-              {
-                backgroundColor: theme.surface,
-                borderColor: theme.stroke,
-                opacity: task.isCompleted ? 0.6 : 1,
-              },
+              styles.priorityRail,
+              { backgroundColor: task.isCompleted ? PriorityColors.low.main : pColor.main },
             ]}
-          >
-            {/* Leftmost Continuous Railway Spine Track */}
-            <View
-              style={[
-                styles.priorityRail,
-                { backgroundColor: pColor.main },
-              ]}
-            />
+          />
 
-            <View style={styles.cardContent}>
-              {/* Top Main Row */}
-              <View style={styles.topRow}>
-                {/* Left Column: Priority Pill, Big Serif Start Time, End Time */}
-                <View style={styles.leftColumn}>
+          <View style={styles.cardContent}>
+            {/* Top Main Row */}
+            <View style={styles.topRow}>
+              {/* Left Column: Checkbox / Priority Pill, Big Serif Start Time, End Time */}
+              <View style={styles.leftColumn}>
+                {/* Interactive Status Pill Button */}
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() => onToggleComplete(task)}
+                  style={[
+                    styles.priorityPill,
+                    {
+                      backgroundColor: task.isCompleted ? PriorityColors.low.tint : pColor.tint,
+                      borderColor: task.isCompleted ? PriorityColors.low.border : pColor.border,
+                    },
+                  ]}
+                >
                   <View
                     style={[
-                      styles.priorityPill,
-                      {
-                        backgroundColor: pColor.tint,
-                        borderColor: pColor.border,
-                      },
+                      styles.priorityDot,
+                      { backgroundColor: task.isCompleted ? PriorityColors.low.main : pColor.main },
                     ]}
-                  >
-                    <View
-                      style={[
-                        styles.priorityDot,
-                        { backgroundColor: pColor.main },
-                      ]}
-                    />
-                    <Text
-                      style={[
-                        styles.priorityText,
-                        { color: pColor.main },
-                      ]}
-                    >
-                      {task.priority}
-                    </Text>
-                  </View>
-
-                  {/* Big Serif Start Time */}
+                  />
                   <Text
                     style={[
-                      styles.startTime,
+                      styles.priorityText,
+                      { color: task.isCompleted ? PriorityColors.low.main : pColor.main },
+                    ]}
+                  >
+                    {task.isCompleted ? 'done' : task.priority}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Big Serif Start Time */}
+                <Text
+                  style={[
+                    styles.startTime,
+                    {
+                      color: task.isCompleted ? PriorityColors.low.main : pColor.main,
+                      fontFamily: Typography.fontFamily.serif,
+                    },
+                  ]}
+                >
+                  {task.startTime}
+                </Text>
+
+                {/* End Time */}
+                {task.endTime ? (
+                  <Text
+                    style={[
+                      styles.endTime,
                       {
-                        color: pColor.main,
-                        fontFamily: Typography.fontFamily.serif,
+                        color: theme.textMuted,
+                        fontFamily: Typography.fontFamily.sansMedium,
                       },
                     ]}
                   >
-                    {task.startTime}
+                    {task.endTime}
                   </Text>
+                ) : null}
+              </View>
 
-                  {/* End Time */}
-                  {task.endTime && (
+              {/* Right Column: Title, Place Tag, Subtask Count & Expand Chevron */}
+              <View style={styles.rightColumn}>
+                <View style={styles.titleRow}>
+                  <Text
+                    numberOfLines={2}
+                    style={[
+                      styles.title,
+                      {
+                        color: theme.textPrimary,
+                        fontFamily: Typography.fontFamily.sansSemiBold,
+                        textDecorationLine: task.isCompleted ? 'line-through' : 'none',
+                      },
+                    ]}
+                  >
+                    {task.title}
+                  </Text>
+                  <TouchableOpacity
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    onPress={() => setIsExpanded(!isExpanded)}
+                  >
+                    <Feather
+                      name={isExpanded ? 'chevron-down' : 'chevron-right'}
+                      size={18}
+                      color={theme.textMuted}
+                      style={styles.chevron}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Metadata Footer: Place & Subtask summary badge */}
+                <View style={styles.metaRow}>
+                  {/* Location badge */}
+                  <View
+                    style={[
+                      styles.placeBadge,
+                      {
+                        backgroundColor: theme.elevated,
+                        borderColor: theme.stroke,
+                      },
+                    ]}
+                  >
+                    {task.place.type === 'virtual' ? (
+                      <Ionicons
+                        name="videocam-outline"
+                        size={14}
+                        color={pColor.main}
+                        style={{ marginRight: 6 }}
+                      />
+                    ) : (
+                      <Ionicons
+                        name="location-outline"
+                        size={14}
+                        color={theme.textMuted}
+                        style={{ marginRight: 6 }}
+                      />
+                    )}
                     <Text
+                      numberOfLines={1}
                       style={[
-                        styles.endTime,
+                        styles.placeText,
                         {
-                          color: theme.textMuted,
+                          color: theme.textSecondary,
                           fontFamily: Typography.fontFamily.sansMedium,
                         },
                       ]}
                     >
-                      {task.endTime}
+                      {task.place.name}
                     </Text>
-                  )}
-                </View>
-
-                {/* Right Column: Title, Place Tag, Subtask Count & Expand Chevron */}
-                <View style={styles.rightColumn}>
-                  <View style={styles.titleRow}>
-                    <Text
-                      numberOfLines={2}
-                      style={[
-                        styles.title,
-                        {
-                          color: theme.textPrimary,
-                          fontFamily: Typography.fontFamily.sansSemiBold,
-                          textDecorationLine: task.isCompleted ? 'line-through' : 'none',
-                        },
-                      ]}
-                    >
-                      {task.title}
-                    </Text>
-                    <TouchableOpacity
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                      onPress={() => setIsExpanded(!isExpanded)}
-                    >
-                      <Feather
-                        name={isExpanded ? 'chevron-down' : 'chevron-right'}
-                        size={16}
-                        color={theme.textMuted}
-                        style={styles.chevron}
-                      />
-                    </TouchableOpacity>
                   </View>
 
-                  {/* Metadata Footer: Place & Subtask summary badge */}
-                  <View style={styles.metaRow}>
-                    {/* Location badge */}
+                  {/* Subtask progress count badge */}
+                  {totalSubtasks > 0 && (
                     <View
                       style={[
-                        styles.placeBadge,
+                        styles.subtaskBadge,
                         {
-                          backgroundColor: theme.elevated,
-                          borderColor: theme.stroke,
+                          backgroundColor: task.isCompleted ? PriorityColors.low.tint : pColor.tint,
+                          borderColor: task.isCompleted ? PriorityColors.low.border : pColor.border,
                         },
                       ]}
                     >
-                      {task.place.type === 'virtual' ? (
-                        <Ionicons
-                          name="videocam-outline"
-                          size={12}
-                          color={pColor.main}
-                          style={{ marginRight: 4 }}
-                        />
-                      ) : (
-                        <Ionicons
-                          name="location-outline"
-                          size={12}
-                          color={theme.textMuted}
-                          style={{ marginRight: 4 }}
-                        />
-                      )}
+                      <Ionicons
+                        name="checkmark-circle-outline"
+                        size={14}
+                        color={task.isCompleted ? PriorityColors.low.main : pColor.main}
+                        style={{ marginRight: 4 }}
+                      />
                       <Text
-                        numberOfLines={1}
                         style={[
-                          styles.placeText,
+                          styles.subtaskText,
                           {
-                            color: theme.textSecondary,
-                            fontFamily: Typography.fontFamily.sans,
+                            color: task.isCompleted ? PriorityColors.low.main : pColor.main,
+                            fontFamily: Typography.fontFamily.sansBold,
                           },
                         ]}
                       >
-                        {task.place.name}
+                        {completedSubtasks}/{totalSubtasks}
                       </Text>
                     </View>
+                  )}
+                </View>
+              </View>
+            </View>
 
-                    {/* Subtask progress count badge */}
-                    {totalSubtasks > 0 && (
+            {/* Railway Subtasks Line Chart Tree Section */}
+            {isExpanded && totalSubtasks > 0 && (
+              <View
+                style={[
+                  styles.railwaySection,
+                  { borderTopColor: theme.strokeSubtle },
+                ]}
+              >
+                {sortedSubtasks.map((subtask, index) => {
+                  const isLast = index === sortedSubtasks.length - 1;
+                  return (
+                    <TouchableOpacity
+                      key={subtask.id}
+                      activeOpacity={0.75}
+                      onPress={() => onToggleSubtask(task.id, subtask.id)}
+                      style={styles.railwayNodeRow}
+                    >
+                      {/* Railway Node Visual */}
+                      <View style={styles.railwayTrackContainer}>
+                        {/* Vertical Connector Line */}
+                        <View
+                          style={[
+                            styles.railwayVerticalLine,
+                            {
+                              backgroundColor: theme.stroke,
+                              height: isLast ? '50%' : '100%',
+                              top: index === 0 ? '50%' : 0,
+                            },
+                          ]}
+                        />
+                        {/* Branch Curve to Node */}
+                        <View
+                          style={[
+                            styles.railwayBranchLine,
+                            { borderColor: theme.stroke },
+                          ]}
+                        />
+                        {/* Subtask Checkpoint Station Dot */}
+                        <View
+                          style={[
+                            styles.railwayStationDot,
+                            {
+                              borderColor: subtask.isCompleted
+                                ? PriorityColors.low.main
+                                : pColor.main,
+                              backgroundColor: subtask.isCompleted
+                                ? PriorityColors.low.main
+                                : theme.surface,
+                            },
+                          ]}
+                        >
+                          {subtask.isCompleted && (
+                            <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+                          )}
+                        </View>
+                      </View>
+
+                      {/* Subtask Content */}
                       <View
                         style={[
-                          styles.subtaskBadge,
+                          styles.subtaskCard,
                           {
-                            backgroundColor: pColor.tint,
-                            borderColor: pColor.border,
+                            backgroundColor: theme.elevated,
+                            borderColor: theme.stroke,
+                            opacity: subtask.isCompleted ? 0.65 : 1,
                           },
                         ]}
                       >
-                        <Ionicons
-                          name="checkmark-circle-outline"
-                          size={12}
-                          color={pColor.main}
-                          style={{ marginRight: 4 }}
-                        />
                         <Text
                           style={[
-                            styles.subtaskText,
+                            styles.subtaskTitle,
                             {
-                              color: pColor.main,
-                              fontFamily: Typography.fontFamily.sansBold,
+                              color: subtask.isCompleted
+                                ? theme.textMuted
+                                : theme.textPrimary,
+                              textDecorationLine: subtask.isCompleted
+                                ? 'line-through'
+                                : 'none',
+                              fontFamily: Typography.fontFamily.sansMedium,
                             },
                           ]}
                         >
-                          {completedSubtasks}/{totalSubtasks}
+                          {subtask.title}
                         </Text>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </View>
 
-              {/* Railway Subtasks Line Chart Tree Section */}
-              {isExpanded && totalSubtasks > 0 && (
-                <View
-                  style={[
-                    styles.railwaySection,
-                    { borderTopColor: theme.strokeSubtle },
-                  ]}
-                >
-                  {sortedSubtasks.map((subtask, index) => {
-                    const isLast = index === sortedSubtasks.length - 1;
-                    return (
-                      <TouchableOpacity
-                        key={subtask.id}
-                        activeOpacity={0.75}
-                        onPress={() => onToggleSubtask(task.id, subtask.id)}
-                        style={styles.railwayNodeRow}
-                      >
-                        {/* Railway Node Visual */}
-                        <View style={styles.railwayTrackContainer}>
-                          {/* Vertical Connector Line */}
-                          <View
-                            style={[
-                              styles.railwayVerticalLine,
-                              {
-                                backgroundColor: theme.stroke,
-                                height: isLast ? '50%' : '100%',
-                                top: index === 0 ? '50%' : 0,
-                              },
-                            ]}
-                          />
-                          {/* Branch Curve to Node */}
-                          <View
-                            style={[
-                              styles.railwayBranchLine,
-                              { borderColor: theme.stroke },
-                            ]}
-                          />
-                          {/* Subtask Checkpoint Station Dot */}
-                          <View
-                            style={[
-                              styles.railwayStationDot,
-                              {
-                                borderColor: subtask.isCompleted
-                                  ? PriorityColors.low.main
-                                  : pColor.main,
-                                backgroundColor: subtask.isCompleted
-                                  ? PriorityColors.low.main
-                                  : theme.surface,
-                              },
-                            ]}
-                          >
-                            {subtask.isCompleted && (
-                              <Ionicons name="checkmark" size={10} color="#FFFFFF" />
-                            )}
+                        {subtask.isCompleted ? (
+                          <View style={styles.statusPillDone}>
+                            <Text style={styles.statusPillDoneText}>done</Text>
                           </View>
-                        </View>
-
-                        {/* Subtask Content */}
-                        <View
-                          style={[
-                            styles.subtaskCard,
-                            {
-                              backgroundColor: theme.elevated,
-                              borderColor: theme.stroke,
-                              opacity: subtask.isCompleted ? 0.65 : 1,
-                            },
-                          ]}
-                        >
-                          <Text
+                        ) : (
+                          <View
                             style={[
-                              styles.subtaskTitle,
+                              styles.statusPillTodo,
                               {
-                                color: subtask.isCompleted
-                                  ? theme.textMuted
-                                  : theme.textPrimary,
-                                textDecorationLine: subtask.isCompleted
-                                  ? 'line-through'
-                                  : 'none',
-                                fontFamily: Typography.fontFamily.sansMedium,
+                                backgroundColor: pColor.tint,
+                                borderColor: pColor.border,
                               },
                             ]}
                           >
-                            {subtask.title}
-                          </Text>
-
-                          {subtask.isCompleted ? (
-                            <View style={styles.statusPillDone}>
-                              <Text style={styles.statusPillDoneText}>done</Text>
-                            </View>
-                          ) : (
-                            <View
+                            <Text
                               style={[
-                                styles.statusPillTodo,
-                                {
-                                  backgroundColor: pColor.tint,
-                                  borderColor: pColor.border,
-                                },
+                                styles.statusPillTodoText,
+                                { color: pColor.main },
                               ]}
                             >
-                              <Text
-                                style={[
-                                  styles.statusPillTodoText,
-                                  { color: pColor.main },
-                                ]}
-                              >
-                                next
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-            </View>
-          </TouchableOpacity>
-        </Animated.View>
-      </GestureDetector>
+                              next
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 };
@@ -396,87 +402,87 @@ export const StitchTaskCard: React.FC<StitchTaskCardProps> = ({
 const styles = StyleSheet.create({
   outerContainer: {
     marginHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 14,
     position: 'relative',
   },
   gestureBackground: {
     ...StyleSheet.absoluteFill,
-    borderRadius: 20,
+    borderRadius: 22,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 22,
   },
   gestureLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   gestureRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   gestureText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
   card: {
-    borderRadius: 20,
-    borderWidth: 1,
+    borderRadius: 22,
+    borderWidth: 1.5,
     flexDirection: 'row',
     overflow: 'hidden',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   priorityRail: {
-    width: 4.5,
+    width: 5,
     height: '100%',
   },
   cardContent: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
   },
   topRow: {
     flexDirection: 'row',
   },
   leftColumn: {
-    width: 76,
+    width: 86,
     alignItems: 'center',
     paddingRight: 10,
   },
   priorityPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2.5,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 8,
     borderWidth: 1,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   priorityDot: {
-    width: 5,
-    height: 5,
+    width: 6,
+    height: 6,
     borderRadius: 3,
-    marginRight: 4,
+    marginRight: 5,
   },
   priorityText: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0.3,
   },
   startTime: {
-    fontSize: 22,
-    lineHeight: 26,
+    fontSize: 24,
+    lineHeight: 28,
     marginTop: 2,
   },
   endTime: {
-    fontSize: 11,
-    marginTop: 1,
+    fontSize: 13,
+    marginTop: 2,
   },
   rightColumn: {
     flex: 1,
@@ -490,8 +496,8 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 17,
+    lineHeight: 23,
     paddingRight: 8,
   },
   chevron: {
@@ -501,46 +507,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 10,
+    marginTop: 12,
   },
   placeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
     borderWidth: 1,
-    maxWidth: '65%',
+    maxWidth: '68%',
   },
   placeText: {
-    fontSize: 11,
+    fontSize: 13,
   },
   subtaskBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingHorizontal: 9,
+    paddingVertical: 4.5,
+    borderRadius: 8,
     borderWidth: 1,
   },
   subtaskText: {
-    fontSize: 11,
+    fontSize: 13,
   },
-  // Railway Tree Styles
   railwaySection: {
-    marginTop: 12,
-    paddingTop: 10,
+    marginTop: 14,
+    paddingTop: 12,
     borderTopWidth: 1,
     paddingLeft: 4,
   },
   railwayNodeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   railwayTrackContainer: {
-    width: 28,
-    height: 38,
+    width: 32,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -548,24 +553,24 @@ const styles = StyleSheet.create({
   },
   railwayVerticalLine: {
     position: 'absolute',
-    left: 8,
-    width: 2,
+    left: 10,
+    width: 2.5,
   },
   railwayBranchLine: {
     position: 'absolute',
-    left: 8,
-    top: 18,
-    width: 10,
+    left: 10,
+    top: 20,
+    width: 12,
     height: 2,
-    borderTopWidth: 1.5,
+    borderTopWidth: 2,
   },
   railwayStationDot: {
     position: 'absolute',
-    left: 14,
-    top: 11,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
+    left: 16,
+    top: 12,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
@@ -576,36 +581,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 14,
     borderWidth: 1,
   },
   subtaskTitle: {
     flex: 1,
-    fontSize: 12,
-    paddingRight: 8,
+    fontSize: 14,
+    paddingRight: 10,
   },
   statusPillDone: {
     backgroundColor: 'rgba(100, 116, 139, 0.15)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
   statusPillDoneText: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     color: '#64748B',
     textTransform: 'lowercase',
   },
   statusPillTodo: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
     borderWidth: 1,
   },
   statusPillTodoText: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: '700',
     textTransform: 'lowercase',
   },

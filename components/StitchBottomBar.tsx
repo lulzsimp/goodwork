@@ -81,7 +81,7 @@ export const StitchBottomBar: React.FC<StitchBottomBarProps> = ({
             { backgroundColor: pColor.main },
           ]}
         >
-          <Feather name="chevron-down" size={18} color="#FFFFFF" />
+          <Feather name="chevron-down" size={20} color="#FFFFFF" />
         </TouchableOpacity>
 
         {/* Center: Inline Quick Task Input / Trigger */}
@@ -124,7 +124,7 @@ export const StitchBottomBar: React.FC<StitchBottomBarProps> = ({
             },
           ]}
         >
-          <Feather name="plus" size={22} color={theme.textPrimary} />
+          <Feather name="plus" size={24} color={theme.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -147,77 +147,77 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 16,
-    borderTopWidth: 1,
+    paddingBottom: 18,
+    borderTopWidth: 1.5,
     zIndex: 30,
   },
   popoverMenu: {
     position: 'absolute',
-    bottom: 74,
+    bottom: 80,
     left: 16,
-    borderRadius: 18,
-    borderWidth: 1,
-    padding: 8,
-    gap: 8,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    padding: 10,
+    gap: 10,
     zIndex: 50,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.25,
-    shadowRadius: 10,
+    shadowRadius: 12,
     elevation: 8,
   },
   popoverItem: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   popoverItemText: {
     color: '#FFFFFF',
     fontWeight: '700',
-    fontSize: 14,
+    fontSize: 16,
   },
   toolbarRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 52,
+    height: 56,
   },
   priorityButton: {
-    width: 52,
-    height: 52,
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
+    width: 56,
+    height: 56,
+    borderTopLeftRadius: 20,
+    borderBottomLeftRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   inputContainer: {
     flex: 1,
-    height: 52,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
+    height: 56,
+    borderTopWidth: 1.5,
+    borderBottomWidth: 1.5,
     justifyContent: 'center',
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
   },
   input: {
-    fontSize: 15,
+    fontSize: 17,
     paddingVertical: 0,
   },
   addButton: {
-    width: 48,
-    height: 52,
-    borderTopRightRadius: 18,
-    borderBottomRightRadius: 18,
-    borderWidth: 1,
+    width: 52,
+    height: 56,
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
+    borderWidth: 1.5,
     borderLeftWidth: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
   homeIndicator: {
-    width: 120,
-    height: 4,
-    borderRadius: 2,
+    width: 130,
+    height: 5,
+    borderRadius: 3,
     alignSelf: 'center',
-    marginTop: 10,
+    marginTop: 12,
   },
 });
