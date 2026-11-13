@@ -102,7 +102,7 @@ export default function HomeScreen() {
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => taskService.deleteTask(taskId),
+        onPress: () => taskService.softDeleteTask(taskId),
       },
     ]);
   };
@@ -116,6 +116,9 @@ export default function HomeScreen() {
   };
 
   const filteredTasks = tasks.filter((task) => {
+    if (task.isDeleted) {
+      return false;
+    }
     if (selectedPriorityFilter && task.priority !== selectedPriorityFilter) {
       return false;
     }
